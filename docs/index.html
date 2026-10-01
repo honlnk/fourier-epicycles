@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>傅里叶圆圈绘图机</title>
+<meta name="description" content="画一笔，让旋转的圆圈用傅里叶级数复现你的笔迹">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='45' cy='50' r='38' fill='none' stroke='%2322d3ee' stroke-width='8'/><circle cx='88' cy='50' r='7' fill='%23e879f9'/></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>傅里叶圆圈绘图机</h1>
+  <p class="subtitle">在左边画板随手画一笔，右侧一堆旋转的圆（傅里叶级数）就会把你的笔迹复现出来</p>
+</header>
+
+<section class="controls">
+  <div class="card">
+    <label>预设图形</label>
+    <div class="btn-row">
+      <button id="btn-star">五角星</button>
+      <button id="btn-heart">爱心</button>
+      <button id="btn-infinity">无穷符号</button>
+    </div>
+  </div>
+  <div class="card">
+    <label for="range-circles">圆圈数量 <span id="label-circles" class="value">120</span></label>
+    <input type="range" id="range-circles" min="1" max="500" value="120">
+  </div>
+  <div class="card">
+    <label for="range-speed">速度 <span id="label-speed" class="value">1×</span></label>
+    <input type="range" id="range-speed" min="0.25" max="4" step="0.25" value="1">
+  </div>
+  <div class="card">
+    <label>显示</label>
+    <div class="btn-row">
+      <label class="checkbox"><input type="checkbox" id="chk-ghost" checked>原笔迹</label>
+      <label class="checkbox"><input type="checkbox" id="chk-circles" checked>圆圈</label>
+    </div>
+  </div>
+  <div class="card">
+    <label>播放</label>
+    <div class="btn-row">
+      <button id="btn-toggle">暂停</button>
+      <button id="btn-clear" class="danger">清空重画</button>
+    </div>
+  </div>
+</section>
+
+<main>
+  <section class="panel">
+    <div class="panel-title"><span>① 画板 —— 随手画一笔</span></div>
+    <div class="canvas-wrap" id="wrap-draw">
+      <canvas id="canvas-draw"></canvas>
+      <div class="hint" id="draw-hint">在这里按住并画一笔<br><span>松手后，右边的圆圈机器立即开工</span></div>
+    </div>
+  </section>
+  <section class="panel">
+    <div class="panel-title"><span>② 圆圈机器 —— 傅里叶级数复现</span><span id="stats" class="stats"></span></div>
+    <div class="canvas-wrap" id="wrap-epi">
+      <canvas id="canvas-epi"></canvas>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <details>
+    <summary>这是什么原理？</summary>
+    <div class="explain">
+      <p>任意一条闭合曲线都可以表示成一堆旋转向量之和（傅里叶级数）：z(t) = Σ cₙ·e^(iωₙt)。每个旋转向量画出来就是一个「圆套圆」——历史上托勒密用地心说的「本轮」凑行星轨道，用的正是同一招。</p>
+      <p>本页面的做法：把你画的笔迹沿弧长均匀重采样为 1024 个点，视为复平面上的周期序列，做一次快速傅里叶变换（FFT）得到各频率分量的幅度与相位，按幅度从大到小排序。每个分量画成一个圆：半径 = 幅度、转速 = 频率（正频率逆时针、负频率顺时针）、初相 = 相位。所有圆首尾相接，最外端点的轨迹就是重建的图形——用的圆越多，轨迹越贴近原笔迹。</p>
+    </div>
+  </details>
+</footer>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>
