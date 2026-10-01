@@ -229,6 +229,7 @@ const state = {
   coeffs: [],           // 傅里叶系数（幅度降序）
   angle: 0,             // 当前相位 ∈ [0, TAU)
   trail: [],            // 笔尖轨迹（复平面坐标）
+  trailAngle: 0,        // 最近一次登记轨迹点时的相位
   playing: false,
   drawing: false,
   rawPoints: [],
@@ -283,6 +284,7 @@ function setPath(raw) {
   state.coeffs = computeCoeffs(samples);
   state.angle = 0;
   state.trail = [tipAt(0)];
+  state.trailAngle = 0;
   state.playing = true;
   state.drawing = false;
   hint.classList.add('hidden');
@@ -295,6 +297,7 @@ function clearAll() {
   state.samples = null;
   state.coeffs = [];
   state.trail = [];
+  state.trailAngle = 0;
   state.angle = 0;
   state.playing = false;
   state.drawing = false;
@@ -377,6 +380,14 @@ drawCanvas.addEventListener('pointercancel', endDraw);
 
 /* ==================== 右侧圆圈机器 ==================== */
 
+// 动画区视角：zoom 缩放倍率，px/py 平移量（屏幕像素）
+const epiView = { zoom: 1, px: 0, py: 0 };
+function resetEpiView() {
+  epiView.zoom = 1;
+  epiView.px = 0;
+  epiView.py = 0;
+}
+
 function renderEpicycles() {
   const w = epiCanvas.clientWidth, h = epiCanvas.clientHeight;
   epiCtx.clearRect(0, 0, w, h);
@@ -386,14 +397,19 @@ function renderEpicycles() {
   // 复平面原点（质心）对应的屏幕位置
   const cx = tf.ox + state.centroid.x * tf.scale;
   const cy = tf.oy + state.centroid.y * tf.scale;
-  const toScreen = p => ({ x: cx + p.re * tf.scale, y: cy - p.im * tf.scale });
+  // 视角变换：以画布中心为基准缩放，再平移；线宽不随缩放变化
+  const view = pt => ({
+    x: (pt.x - w / 2) * epiView.zoom + w / 2 + epiView.px,
+    y: (pt.y - h / 2) * epiView.zoom + h / 2 + epiView.py,
+  });
+  const toScreen = p => view({ x: cx + p.re * tf.scale, y: cy - p.im * tf.scale });
 
   // 原笔迹（灰色幽灵）
   if (state.showGhost) {
     epiCtx.beginPath();
     state.samples.forEach((p, i) => {
-      const x = tf.ox + p.x * tf.scale, y = tf.oy + p.y * tf.scale;
-      i ? epiCtx.lineTo(x, y) : epiCtx.moveTo(x, y);
+      const s = view({ x: tf.ox + p.x * tf.scale, y: tf.oy + p.y * tf.scale });
+      i ? epiCtx.lineTo(s.x, s.y) : epiCtx.moveTo(s.x, s.y);
     });
     epiCtx.closePath();
     epiCtx.strokeStyle = 'rgba(139, 150, 168, .35)';
@@ -425,8 +441,8 @@ function renderEpicycles() {
       const c = state.coeffs[i];
       const a = c.freq * state.angle + c.phase;
       const q = { re: p.re + c.amp * Math.cos(a), im: p.im + c.amp * Math.sin(a) };
-      const r = c.amp * tf.scale;
-      // 高 K 时大量圆在屏幕上不足 1.2px，跳过绘制（只做数学推进），视觉无差异
+      const r = c.amp * tf.scale * epiView.zoom;
+      // 大量圆在屏幕上不足 1.2px，跳过绘制（只做数学推进），视觉无差异
       if (r >= 1.2) {
         const sp = toScreen(p), sq = toScreen(q);
         epiCtx.strokeStyle = i === 0 ? 'rgba(34, 211, 238, .35)' : 'rgba(34, 211, 238, .18)';
@@ -457,24 +473,92 @@ function renderEpicycles() {
   epiCtx.stroke();
 }
 
-/** 推进相位并记录轨迹（固定角度步长，轨迹密度与帧率/速度无关） */
+/** 推进相位并按固定角度步长登记轨迹点（任意速度下轨迹点数都有上界） */
 function advance(dt) {
   if (!state.coeffs.length) return;
+  if (state.angle >= TAU - 1e-9) {
+    // 画满一圈，从头再描
+    state.angle = 0;
+    state.trail = [tipAt(0)];
+    state.trailAngle = 0;
+    return;
+  }
+  state.angle = Math.min(state.angle + TAU * dt * state.speed / PERIOD, TAU);
   const step = TAU / TRAIL_STEPS;
-  let target = state.angle + TAU * dt * state.speed / PERIOD;
-  while (state.angle < target) {
-    if (state.angle >= TAU - 1e-9) {
-      // 画满一圈，从头再描
-      state.angle -= TAU;
-      target -= TAU;
-      state.trail = [tipAt(state.angle)];
-      continue;
-    }
-    const next = Math.min(state.angle + step, target, TAU);
-    state.trail.push(tipAt(next));
-    state.angle = next;
+  if (state.angle - state.trailAngle >= step) {
+    state.trail.push(tipAt(state.angle));
+    state.trailAngle = state.angle;
   }
 }
+
+/* ==================== 动画区视角：滚轮缩放 + 拖拽平移 + 双指捏合 ==================== */
+
+/** 以屏幕坐标 (sx, sy) 为锚点缩放 factor 倍，锚点下的内容保持不动 */
+function zoomAt(sx, sy, factor) {
+  const w = epiCanvas.clientWidth, h = epiCanvas.clientHeight;
+  const z2 = Math.min(60, Math.max(1, epiView.zoom * factor));
+  if (z2 === epiView.zoom) return;
+  const cx = (sx - w / 2 - epiView.px) / epiView.zoom + w / 2;
+  const cy = (sy - h / 2 - epiView.py) / epiView.zoom + h / 2;
+  epiView.px = sx - w / 2 - (cx - w / 2) * z2;
+  epiView.py = sy - h / 2 - (cy - h / 2) * z2;
+  epiView.zoom = z2;
+}
+
+epiCanvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = epiCanvas.getBoundingClientRect();
+  const delta = e.deltaMode === 1 ? e.deltaY * 33 : e.deltaY;
+  zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-delta * 0.0015));
+}, { passive: false });
+
+const epiPointers = new Map();
+let pinchDist = 0;
+
+function epiCanvasPos(e) {
+  const r = epiCanvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+epiCanvas.addEventListener('pointerdown', e => {
+  try { epiCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+  epiPointers.set(e.pointerId, epiCanvasPos(e));
+  if (epiPointers.size === 2) {
+    const [a, b] = [...epiPointers.values()];
+    pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+  }
+  epiCanvas.classList.add('grabbing');
+});
+
+epiCanvas.addEventListener('pointermove', e => {
+  if (!epiPointers.has(e.pointerId)) return;
+  const cur = epiCanvasPos(e);
+  if (epiPointers.size === 1) {
+    const prev = epiPointers.get(e.pointerId);
+    epiView.px += cur.x - prev.x;
+    epiView.py += cur.y - prev.y;
+  } else if (epiPointers.size === 2) {
+    epiPointers.set(e.pointerId, cur);
+    const [a, b] = [...epiPointers.values()];
+    const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinchDist > 0 && d > 0) {
+      zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, d / pinchDist);
+    }
+    pinchDist = d;
+    return;
+  }
+  epiPointers.set(e.pointerId, cur);
+});
+
+function epiPointerEnd(e) {
+  epiPointers.delete(e.pointerId);
+  pinchDist = 0;
+  if (!epiPointers.size) epiCanvas.classList.remove('grabbing');
+}
+epiCanvas.addEventListener('pointerup', epiPointerEnd);
+epiCanvas.addEventListener('pointercancel', epiPointerEnd);
+
+epiCanvas.addEventListener('dblclick', resetEpiView);
 
 let last = performance.now();
 function frame(now) {
@@ -500,7 +584,8 @@ function setCircles(k) {
   state.count = k;
   rangeCircles.value = k;
   numCircles.value = k;
-  state.trail = [];
+  state.trail = [tipAt(state.angle)];
+  state.trailAngle = state.angle;
   updateStats();
 }
 
@@ -510,9 +595,26 @@ rangeCircles.addEventListener('input', () => setCircles(+rangeCircles.value));
 numCircles.addEventListener('change', () => setCircles(+numCircles.value || state.count));
 
 rangeSpeed.addEventListener('input', () => {
+  // 手动调速度滑块时退出慢放模式
+  slowmo = false;
+  btnSlowmo.classList.remove('active');
   state.speed = +rangeSpeed.value;
   labelSpeed.textContent = String(+(state.speed.toFixed(2))) + '×';
 });
+
+/* ==================== 慢放与视角复位按钮 ==================== */
+
+const btnSlowmo = $('btn-slowmo');
+let slowmo = false;
+
+btnSlowmo.addEventListener('click', () => {
+  slowmo = !slowmo;
+  state.speed = slowmo ? 0.01 : +rangeSpeed.value;
+  btnSlowmo.classList.toggle('active', slowmo);
+  labelSpeed.textContent = String(+(state.speed.toFixed(2))) + '×';
+});
+
+$('btn-resetview').addEventListener('click', resetEpiView);
 
 $('chk-ghost').addEventListener('change', e => { state.showGhost = e.target.checked; });
 $('chk-circles').addEventListener('change', e => { state.showCircles = e.target.checked; });
