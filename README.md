@@ -2,7 +2,7 @@
 
 在画板上随手画一笔，一堆旋转的圆（傅里叶级数 / 本轮 epicycles）就会把你的笔迹复现出来。
 
-**在线体验：** https://fourier.honlnk.com/ （备用：https://honlnk.github.io/fourier-epicycles/）
+**在线体验：** https://draw.honlnk.com/ （备用：https://honlnk.github.io/fourier-epicycles/）
 
 ## 玩法
 
