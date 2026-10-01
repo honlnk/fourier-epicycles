@@ -7,7 +7,7 @@
 ## 玩法
 
 - 左侧画板按住鼠标（或手指）画一笔，松手后右侧的圆圈机器立即开始复现
-- 也可以点预设图形：五角星 / 爱心 / 无穷符号
+- 预设图形：**honlnk 花体签名**（默认，来自 Great Vibes 字体）/ 五角星 / 爱心 / 无穷符号
 - 拖动「圆圈数量」滑块，观察圆越多、轨迹越接近原笔迹
 - 可调速度、暂停，显示 / 隐藏圆圈与原笔迹
 
@@ -30,3 +30,7 @@ python3 -m http.server -d docs 8000
 ## CI / CD
 
 推送到 `main` 分支即自动通过 GitHub Actions 将 `docs/` 部署到 GitHub Pages，见 [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)。
+
+## 致谢
+
+「honlnk 签名」预设的字形来自 [Great Vibes](https://fonts.google.com/specimen/Great+Vibes)（Copyright 2010 The Great Vibes Pro Project Authors，[SIL OFL 1.1](https://openfontlicense.org/) 授权）。字形轮廓转 SVG 路径的工具见 [`tools/font2path/`](tools/font2path/)。

@@ -1,1 +1,5 @@
 .DS_Store
+node_modules/
+tools/font2path/GreatVibes-Regular.ttf
+tools/font2path/preview.html
+tools/font2path/signature-path.txt

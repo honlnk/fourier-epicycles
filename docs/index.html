@@ -20,14 +20,15 @@
   <div class="card">
     <label>预设图形</label>
     <div class="btn-row">
+      <button id="btn-signature">honlnk 签名</button>
       <button id="btn-star">五角星</button>
       <button id="btn-heart">爱心</button>
       <button id="btn-infinity">无穷符号</button>
     </div>
   </div>
   <div class="card">
-    <label for="range-circles">圆圈数量 <span id="label-circles" class="value">120</span></label>
-    <input type="range" id="range-circles" min="1" max="500" value="120">
+    <label for="range-circles">圆圈数量 <span id="label-circles" class="value">200</span></label>
+    <input type="range" id="range-circles" min="1" max="500" value="200">
   </div>
   <div class="card">
     <label for="range-speed">速度 <span id="label-speed" class="value">1×</span></label>
@@ -71,6 +72,7 @@
     <div class="explain">
       <p>任意一条闭合曲线都可以表示成一堆旋转向量之和（傅里叶级数）：z(t) = Σ cₙ·e^(iωₙt)。每个旋转向量画出来就是一个「圆套圆」——历史上托勒密用地心说的「本轮」凑行星轨道，用的正是同一招。</p>
       <p>本页面的做法：把你画的笔迹沿弧长均匀重采样为 1024 个点，视为复平面上的周期序列，做一次快速傅里叶变换（FFT）得到各频率分量的幅度与相位，按幅度从大到小排序。每个分量画成一个圆：半径 = 幅度、转速 = 频率（正频率逆时针、负频率顺时针）、初相 = 相位。所有圆首尾相接，最外端点的轨迹就是重建的图形——用的圆越多，轨迹越贴近原笔迹。</p>
+      <p>「honlnk 签名」预设来自 <a href="https://fonts.google.com/specimen/Great+Vibes" target="_blank" rel="noopener">Great Vibes</a> 花体字体的字形轮廓（SIL OFL 1.1 授权），轮廓生成的 SVG 路径同样被当作一条周期曲线交给傅里叶机器复现。</p>
     </div>
   </details>
 </footer>
