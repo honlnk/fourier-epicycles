@@ -81,6 +81,26 @@ button.danger:hover { border-color: var(--danger); color: var(--danger); }
 
 input[type="range"] { width: 150px; accent-color: var(--accent); }
 
+.circles-row { display: flex; align-items: center; gap: 8px; }
+.circles-row input[type="range"] { flex: 1; min-width: 80px; width: auto; }
+.num-input {
+  width: 62px;
+  background: var(--panel2);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: .85rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-family: inherit;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+.num-input::-webkit-outer-spin-button,
+.num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num-input:focus { outline: none; border-color: var(--accent); }
+
 main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
 

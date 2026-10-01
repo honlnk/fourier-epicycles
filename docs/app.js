@@ -203,7 +203,7 @@ const drawCtx = drawCanvas.getContext('2d'), epiCtx = epiCanvas.getContext('2d')
 const hint = $('draw-hint');
 const statsEl = $('stats');
 const rangeCircles = $('range-circles'), rangeSpeed = $('range-speed');
-const labelCircles = $('label-circles'), labelSpeed = $('label-speed');
+const numCircles = $('num-circles'), labelSpeed = $('label-speed');
 const btnToggle = $('btn-toggle');
 
 function setupCanvas(canvas, ctx, onResize) {
@@ -425,16 +425,20 @@ function renderEpicycles() {
       const c = state.coeffs[i];
       const a = c.freq * state.angle + c.phase;
       const q = { re: p.re + c.amp * Math.cos(a), im: p.im + c.amp * Math.sin(a) };
-      const sp = toScreen(p), sq = toScreen(q);
-      epiCtx.strokeStyle = i === 0 ? 'rgba(34, 211, 238, .35)' : 'rgba(34, 211, 238, .18)';
-      epiCtx.beginPath();
-      epiCtx.arc(sp.x, sp.y, c.amp * tf.scale, 0, TAU);
-      epiCtx.stroke();
-      epiCtx.strokeStyle = 'rgba(221, 229, 242, .5)';
-      epiCtx.beginPath();
-      epiCtx.moveTo(sp.x, sp.y);
-      epiCtx.lineTo(sq.x, sq.y);
-      epiCtx.stroke();
+      const r = c.amp * tf.scale;
+      // 高 K 时大量圆在屏幕上不足 1.2px，跳过绘制（只做数学推进），视觉无差异
+      if (r >= 1.2) {
+        const sp = toScreen(p), sq = toScreen(q);
+        epiCtx.strokeStyle = i === 0 ? 'rgba(34, 211, 238, .35)' : 'rgba(34, 211, 238, .18)';
+        epiCtx.beginPath();
+        epiCtx.arc(sp.x, sp.y, r, 0, TAU);
+        epiCtx.stroke();
+        epiCtx.strokeStyle = 'rgba(221, 229, 242, .5)';
+        epiCtx.beginPath();
+        epiCtx.moveTo(sp.x, sp.y);
+        epiCtx.lineTo(sq.x, sq.y);
+        epiCtx.stroke();
+      }
       p = q;
     }
   } else {
@@ -488,12 +492,22 @@ $('btn-star').addEventListener('click', () => setPath(presetStar()));
 $('btn-heart').addEventListener('click', () => setPath(presetHeart()));
 $('btn-infinity').addEventListener('click', () => setPath(presetInfinity()));
 
-rangeCircles.addEventListener('input', () => {
-  state.count = +rangeCircles.value;
-  labelCircles.textContent = state.count;
+const MAX_CIRCLES = 1023; // = N - 1（去掉直流分量后的全部频率分量）
+
+/** 设置圆圈数量，滑块与数字输入框保持双向同步 */
+function setCircles(k) {
+  k = Math.max(1, Math.min(MAX_CIRCLES, Math.round(k) || 1));
+  state.count = k;
+  rangeCircles.value = k;
+  numCircles.value = k;
   state.trail = [];
   updateStats();
-});
+}
+
+rangeCircles.addEventListener('input', () => setCircles(+rangeCircles.value));
+
+// 输入框在失焦或回车时生效，避免逐字符输入过程中数量剧烈跳动
+numCircles.addEventListener('change', () => setCircles(+numCircles.value || state.count));
 
 rangeSpeed.addEventListener('input', () => {
   state.speed = +rangeSpeed.value;
