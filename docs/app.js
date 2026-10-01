@@ -397,6 +397,12 @@ function renderEpicycles() {
   // 复平面原点（质心）对应的屏幕位置
   const cx = tf.ox + state.centroid.x * tf.scale;
   const cy = tf.oy + state.centroid.y * tf.scale;
+  // 跟随模式：每帧把视角对准笔尖（缩放倍率不变，仅平移）
+  if (follow) {
+    const tip = tipAt(state.angle);
+    epiView.px = -(cx + tip.re * tf.scale - w / 2) * epiView.zoom;
+    epiView.py = -(cy - tip.im * tf.scale - h / 2) * epiView.zoom;
+  }
   // 视角变换：以画布中心为基准缩放，再平移；线宽不随缩放变化
   const view = pt => ({
     x: (pt.x - w / 2) * epiView.zoom + w / 2 + epiView.px,
@@ -537,6 +543,8 @@ epiCanvas.addEventListener('pointermove', e => {
     const prev = epiPointers.get(e.pointerId);
     epiView.px += cur.x - prev.x;
     epiView.py += cur.y - prev.y;
+    // 手动拖拽取消跟随（与地图类应用的习惯一致）
+    if (follow) setFollow(false);
   } else if (epiPointers.size === 2) {
     epiPointers.set(e.pointerId, cur);
     const [a, b] = [...epiPointers.values()];
@@ -606,6 +614,15 @@ rangeSpeed.addEventListener('input', () => {
 
 const btnSlowmo = $('btn-slowmo');
 let slowmo = false;
+
+const btnFollow = $('btn-follow');
+let follow = false;
+function setFollow(on) {
+  follow = on;
+  btnFollow.classList.toggle('active', on);
+}
+
+btnFollow.addEventListener('click', () => setFollow(!follow));
 
 btnSlowmo.addEventListener('click', () => {
   slowmo = !slowmo;
